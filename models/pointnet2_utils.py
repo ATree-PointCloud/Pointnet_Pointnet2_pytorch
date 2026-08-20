@@ -203,13 +203,15 @@ class PointNetSetAbstraction(nn.Module):
 
 
 class PointNetSetAbstractionMsg(nn.Module):
-    def __init__(self, npoint, radius_list, nsample_list, in_channel, mlp_list):
+    def __init__(self, npoint, radius_list, nsample_list, in_channel, mlp_list, debug=False):
         super(PointNetSetAbstractionMsg, self).__init__()
         self.npoint = npoint
         self.radius_list = radius_list
         self.nsample_list = nsample_list
         self.conv_blocks = nn.ModuleList()
         self.bn_blocks = nn.ModuleList()
+        self.debug = debug
+        self.debug_printed = False
         for i in range(len(mlp_list)):
             convs = nn.ModuleList()
             bns = nn.ModuleList()
@@ -256,7 +258,13 @@ class PointNetSetAbstractionMsg(nn.Module):
                 grouped_points =  F.relu(bn(conv(grouped_points)))
             new_points = torch.max(grouped_points, 2)[0]  # [B, D', S]
             new_points_list.append(new_points)
+            if self.debug and not self.debug_printed:
+                print(f"Scale {i+1}: radius = {radius}, nsample = {K}")
+                print(f"group_idx_shape: {group_idx.shape}")
+                first_centroid_idx = group_idx[0, 0]
+                print(f"first centroid unique_neighbors: {torch.unique(first_centroid_idx).numel()}")
 
+        self.debug_printed = True
         new_xyz = new_xyz.permute(0, 2, 1)
         new_points_concat = torch.cat(new_points_list, dim=1)
         return new_xyz, new_points_concat

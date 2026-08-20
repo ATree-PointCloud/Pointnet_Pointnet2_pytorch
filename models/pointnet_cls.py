@@ -10,7 +10,7 @@ class get_model(nn.Module):
             channel = 6
         else:
             channel = 3
-        self.feat = PointNetEncoder(global_feat=True, feature_transform=True, channel=channel)
+        self.feat = PointNetEncoder(global_feat=True, feature_transform=False, channel=channel)
         self.fc1 = nn.Linear(1024, 512)
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, k)
@@ -34,7 +34,7 @@ class get_loss(torch.nn.Module):
 
     def forward(self, pred, target, trans_feat):
         loss = F.nll_loss(pred, target)
-        mat_diff_loss = feature_transform_reguliarzer(trans_feat)
-
-        total_loss = loss + mat_diff_loss * self.mat_diff_loss_scale
-        return total_loss
+        if trans_feat:
+            mat_diff_loss = feature_transform_reguliarzer(trans_feat)
+            loss += mat_diff_loss * self.mat_diff_loss_scale
+        return loss

@@ -139,7 +139,7 @@ class ModelNetDataLoader(Dataset):
 if __name__ == '__main__':
     import torch
 
-    data = ModelNetDataLoader('/data/modelnet40_normal_resampled/', split='train')
+    data = ModelNetDataLoader('C:/Users/naihui.zhang/data/modelnet40_normal_resampled/', split='train')
     DataLoader = torch.utils.data.DataLoader(data, batch_size=12, shuffle=True)
     for point, label in DataLoader:
         print(point.shape)
