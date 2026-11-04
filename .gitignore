@@ -112,3 +112,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Local datasets and training outputs (existing history is preserved)
+/data/
+/log/
+checkpoints/

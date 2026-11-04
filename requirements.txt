@@ -1,0 +1,4 @@
+# Validated classification path; upstream segmentation/visualizers may need more packages.
+torch>=2.5,<3
+numpy>=1.26,<3
+tqdm>=4.66,<5

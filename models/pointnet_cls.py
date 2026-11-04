@@ -34,7 +34,7 @@ class get_loss(torch.nn.Module):
 
     def forward(self, pred, target, trans_feat):
         loss = F.nll_loss(pred, target)
-        if trans_feat:
+        if trans_feat is not None:
             mat_diff_loss = feature_transform_reguliarzer(trans_feat)
             loss += mat_diff_loss * self.mat_diff_loss_scale
         return loss

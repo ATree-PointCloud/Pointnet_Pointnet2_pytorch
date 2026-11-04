@@ -40,6 +40,8 @@ def parse_args():
     parser.add_argument('--use_normals', action='store_true', default=False, help='use normals')
     parser.add_argument('--process_data', action='store_true', default=False, help='save data offline')
     parser.add_argument('--use_uniform_sample', action='store_true', default=False, help='use uniform sampiling')
+    parser.add_argument('--data_root', default=os.environ.get('MODELNET40_ROOT', os.path.join(BASE_DIR, 'data', 'modelnet40_normal_resampled')), help='ModelNet text dataset directory; overrides MODELNET40_ROOT')
+    parser.add_argument('--workers', type=int, default=0, help='DataLoader workers (0 is portable on Windows)')
     return parser.parse_args()
 
 
@@ -103,7 +105,6 @@ def main(args):
     log_dir.mkdir(exist_ok=True)
 
     '''LOG'''
-    args = parse_args()
     logger = logging.getLogger("Model")
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -116,12 +117,12 @@ def main(args):
 
     '''DATA LOADING'''
     log_string('Load dataset ...')
-    data_path = 'C:/Users/naihui.zhang/data/modelnet40_normal_resampled/'
+    data_path = os.path.expanduser(args.data_root)
 
     train_dataset = ModelNetDataLoader(root=data_path, args=args, split='train', process_data=args.process_data)
     test_dataset = ModelNetDataLoader(root=data_path, args=args, split='test', process_data=args.process_data)
-    trainDataLoader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=10, drop_last=True)
-    testDataLoader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=10)
+    trainDataLoader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, drop_last=True)
+    testDataLoader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
     '''MODEL LOADING'''
     num_class = args.num_category
@@ -139,7 +140,7 @@ def main(args):
         criterion = criterion.cuda()
 
     try:
-        checkpoint = torch.load(str(exp_dir) + '/checkpoints/best_model.pth')
+        checkpoint = torch.load(str(exp_dir) + '/checkpoints/best_model.pth', map_location='cpu' if args.use_cpu else 'cuda', weights_only=False)
         start_epoch = checkpoint['epoch']
         classifier.load_state_dict(checkpoint['model_state_dict'])
         log_string('Use pretrain model')
@@ -171,7 +172,6 @@ def main(args):
         mean_correct = []
         classifier = classifier.train()
 
-        scheduler.step()
         for batch_id, (points, target) in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
             optimizer.zero_grad()
 
@@ -222,7 +222,8 @@ def main(args):
                     'optimizer_state_dict': optimizer.state_dict(),
                 }
                 torch.save(state, savepath)
-            global_epoch += 1
+            scheduler.step()
+        global_epoch += 1
 
     logger.info('End of training...')
 

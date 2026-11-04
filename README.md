@@ -1,5 +1,7 @@
 # Pytorch Implementation of PointNet and PointNet++ 
 
+> 这是我用于点云分类与邻域分析的修改版。我的模型改动、数据路径参数和运行方式见 [LOCAL_CHANGES.md](LOCAL_CHANGES.md)。下文保留原作者说明，性能数字属于上游；历史预训练目录不保证随展示版分发。
+
 This repo is implementation for [PointNet](http://openaccess.thecvf.com/content_cvpr_2017/papers/Qi_PointNet_Deep_Learning_CVPR_2017_paper.pdf) and [PointNet++](http://papers.nips.cc/paper/7095-pointnet-deep-hierarchical-feature-learning-on-point-sets-in-a-metric-space.pdf) in pytorch.
 
 ## Update

@@ -29,6 +29,8 @@ def parse_args():
     parser.add_argument('--use_normals', action='store_true', default=False, help='use normals')
     parser.add_argument('--use_uniform_sample', action='store_true', default=False, help='use uniform sampiling')
     parser.add_argument('--num_votes', type=int, default=3, help='Aggregate classification scores with voting')
+    parser.add_argument('--data_root', default=os.environ.get('MODELNET40_ROOT', os.path.join(BASE_DIR, 'data', 'modelnet40_normal_resampled')), help='ModelNet text dataset directory; overrides MODELNET40_ROOT')
+    parser.add_argument('--workers', type=int, default=0, help='DataLoader workers (0 is portable on Windows)')
     return parser.parse_args()
 
 
@@ -42,7 +44,7 @@ def test(model, loader, num_class=40, vote_num=1):
             points, target = points.cuda(), target.cuda()
 
         points = points.transpose(2, 1)
-        vote_pool = torch.zeros(target.size()[0], num_class).cuda()
+        vote_pool = torch.zeros(target.size()[0], num_class, device=points.device)
 
         for _ in range(vote_num):
             pred, _ = classifier(points)
@@ -75,7 +77,6 @@ def main(args):
     experiment_dir = 'log/classification/' + args.log_dir
 
     '''LOG'''
-    args = parse_args()
     logger = logging.getLogger("Model")
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -88,10 +89,10 @@ def main(args):
 
     '''DATA LOADING'''
     log_string('Load dataset ...')
-    data_path = 'C:/Users/naihui.zhang/data/modelnet40_normal_resampled/'
+    data_path = os.path.expanduser(args.data_root)
 
     test_dataset = ModelNetDataLoader(root=data_path, args=args, split='test', process_data=False)
-    testDataLoader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=10)
+    testDataLoader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
     '''MODEL LOADING'''
     num_class = args.num_category
@@ -102,7 +103,7 @@ def main(args):
     if not args.use_cpu:
         classifier = classifier.cuda()
 
-    checkpoint = torch.load(str(experiment_dir) + '/checkpoints/best_model.pth')
+    checkpoint = torch.load(str(experiment_dir) + '/checkpoints/best_model.pth', map_location='cpu' if args.use_cpu else 'cuda', weights_only=False)
     classifier.load_state_dict(checkpoint['model_state_dict'])
 
     with torch.no_grad():

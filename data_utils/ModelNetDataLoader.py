@@ -7,6 +7,7 @@ import os
 import numpy as np
 import warnings
 import pickle
+from pathlib import Path
 
 from tqdm import tqdm
 from torch.utils.data import Dataset
@@ -48,7 +49,14 @@ def farthest_point_sample(point, npoint):
 
 class ModelNetDataLoader(Dataset):
     def __init__(self, root, args, split='train', process_data=False):
-        self.root = root
+        self.root = os.path.expanduser(os.fspath(root))
+        root = self.root
+        if args.num_point <= 0:
+            raise ValueError('num_point must be positive')
+        required = [f'modelnet{args.num_category}_{name}.txt' for name in ('shape_names', 'train', 'test')]
+        missing = [name for name in required if not os.path.isfile(os.path.join(root, name))]
+        if missing:
+            raise FileNotFoundError(f'ModelNet dataset missing {missing} in {root}. Set --data_root or MODELNET40_ROOT.')
         self.npoints = args.num_point
         self.process_data = process_data
         self.uniform = args.use_uniform_sample
@@ -60,16 +68,16 @@ class ModelNetDataLoader(Dataset):
         else:
             self.catfile = os.path.join(self.root, 'modelnet40_shape_names.txt')
 
-        self.cat = [line.rstrip() for line in open(self.catfile)]
+        self.cat = Path(self.catfile).read_text(encoding='utf-8').splitlines()
         self.classes = dict(zip(self.cat, range(len(self.cat))))
 
         shape_ids = {}
         if self.num_category == 10:
-            shape_ids['train'] = [line.rstrip() for line in open(os.path.join(self.root, 'modelnet10_train.txt'))]
-            shape_ids['test'] = [line.rstrip() for line in open(os.path.join(self.root, 'modelnet10_test.txt'))]
+            shape_ids['train'] = (Path(self.root) / 'modelnet10_train.txt').read_text(encoding='utf-8').splitlines()
+            shape_ids['test'] = (Path(self.root) / 'modelnet10_test.txt').read_text(encoding='utf-8').splitlines()
         else:
-            shape_ids['train'] = [line.rstrip() for line in open(os.path.join(self.root, 'modelnet40_train.txt'))]
-            shape_ids['test'] = [line.rstrip() for line in open(os.path.join(self.root, 'modelnet40_test.txt'))]
+            shape_ids['train'] = (Path(self.root) / 'modelnet40_train.txt').read_text(encoding='utf-8').splitlines()
+            shape_ids['test'] = (Path(self.root) / 'modelnet40_test.txt').read_text(encoding='utf-8').splitlines()
 
         assert (split == 'train' or split == 'test')
         shape_names = ['_'.join(x.split('_')[0:-1]) for x in shape_ids[split]]
@@ -139,8 +147,18 @@ class ModelNetDataLoader(Dataset):
 if __name__ == '__main__':
     import torch
 
-    data = ModelNetDataLoader('C:/Users/naihui.zhang/data/modelnet40_normal_resampled/', split='train')
+    import argparse
+    from pathlib import Path
+    parser = argparse.ArgumentParser(description='Inspect a ModelNet text dataset')
+    parser.add_argument('--data_root', default=os.environ.get('MODELNET40_ROOT', str(Path(__file__).resolve().parents[1] / 'data/modelnet40_normal_resampled')))
+    parser.add_argument('--num_point', type=int, default=1024)
+    parser.add_argument('--num_category', type=int, choices=[10, 40], default=40)
+    parser.add_argument('--use_uniform_sample', action='store_true')
+    parser.add_argument('--use_normals', action='store_true')
+    args = parser.parse_args()
+    data = ModelNetDataLoader(args.data_root, args=args, split='train')
     DataLoader = torch.utils.data.DataLoader(data, batch_size=12, shuffle=True)
     for point, label in DataLoader:
         print(point.shape)
         print(label.shape)
+        break
